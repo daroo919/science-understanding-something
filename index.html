@@ -329,14 +329,9 @@
             const manualOffset = -(parseFloat(timeFlowInput.value) * 0.1);
             const currentOffset = isAuto ? autoOffset : manualOffset;
 
+            // 두 모드 모두 오프셋(움직임)을 동일하게 적용하여 선 전체가 움직이도록 수정
             for (let x = 0; x < width; x++) {
-                let angle;
-                if (currentMode === 'dist') {
-                    angle = (x / width) * Math.PI * 2 * frequency + currentOffset;
-                } else {
-                    angle = (x / width) * Math.PI * 2 * frequency;
-                }
-                
+                const angle = (x / width) * Math.PI * 2 * frequency + currentOffset;
                 const y = centerY + Math.sin(angle) * amplitude;
 
                 if (x === 0) {
@@ -357,25 +352,24 @@
             }
             ctx.stroke();
 
-            if (currentMode === 'time') {
-                const fixedX = width * 0.25;
-                const pointAngle = (fixedX / width) * Math.PI * 2 * frequency + currentOffset;
-                const pointY = centerY + Math.sin(pointAngle) * amplitude;
+            // 빨간 점도 선과 한 몸으로 완벽하게 연동되도록 상시 드로잉 (두 모드 공통 적용)
+            const fixedX = width * 0.25;
+            const pointAngle = (fixedX / width) * Math.PI * 2 * frequency + currentOffset;
+            const pointY = centerY + Math.sin(pointAngle) * amplitude;
 
-                ctx.beginPath();
-                ctx.fillStyle = '#ff0000';
-                ctx.arc(fixedX, pointY, 6, 0, Math.PI * 2);
-                ctx.fill();
+            ctx.beginPath();
+            ctx.fillStyle = '#ff0000';
+            ctx.arc(fixedX, pointY, 6, 0, Math.PI * 2);
+            ctx.fill();
 
-                ctx.beginPath();
-                ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([3, 3]);
-                ctx.moveTo(fixedX, centerY - amplitude);
-                ctx.lineTo(fixedX, centerY + amplitude);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
+            ctx.beginPath();
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([3, 3]);
+            ctx.moveTo(fixedX, centerY - amplitude);
+            ctx.lineTo(fixedX, centerY + amplitude);
+            ctx.stroke();
+            ctx.setLineDash([]);
 
             if (firstCrestX !== null) {
                 ctx.beginPath();
