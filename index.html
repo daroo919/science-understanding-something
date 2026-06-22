@@ -21,7 +21,7 @@
             max-width: 600px;
             border: 2px solid #000000;
             padding: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             box-sizing: border-box;
         }
 
@@ -31,12 +31,29 @@
             margin-bottom: 10px;
         }
 
-        .control-group:last-child {
-            margin-bottom: 0;
+        .toggle-group {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .toggle-btn {
+            padding: 8px 20px;
+            border: 2px solid #000000;
+            background-color: #ffffff;
+            color: #000000;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .toggle-btn.active {
+            background-color: #000000;
+            color: #ffffff;
         }
 
         label {
-            width: 100px;
+            width: 80px;
             font-weight: bold;
             font-size: 14px;
         }
@@ -44,15 +61,8 @@
         .amp-label { color: #ff0000; }
         .freq-label { color: #0000ff; }
 
-        #amplitude {
-            accent-color: #ff0000;
-            flex: 1;
-        }
-
-        #frequency {
-            accent-color: #0000ff;
-            flex: 1;
-        }
+        #amplitude { accent-color: #ff0000; flex: 1; }
+        #frequency { accent-color: #0000ff; flex: 1; }
 
         .value-display {
             width: 50px;
@@ -68,32 +78,62 @@
             width: 100%;
             max-width: 600px;
             border: 2px solid #000000;
+            position: relative;
+            background: #ffffff;
+            overflow: hidden;
         }
 
         canvas {
             display: block;
             width: 100%;
-            height: 300px;
+            height: 320px;
+        }
+
+        .glass-panel {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 15px;
+            padding: 15px;
+            box-sizing: border-box;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            font-weight: bold;
+            font-size: 15px;
+            letter-spacing: -0.5px;
         }
     </style>
 </head>
 <body>
 
+    <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-dist" onclick="setMode('dist')">거리 그래프</button>
+        <button class="toggle-btn" id="btn-time" onclick="setMode('time')">시간 그래프</button>
+    </div>
+
     <div class="controls">
         <div class="control-group">
             <label for="amplitude" class="amp-label">진폭</label>
-            <input type="range" id="amplitude" min="10" max="130" value="50">
-            <div class="value-display amp-val" id="amp-val">50</div>
+            <input type="range" id="amplitude" min="20" max="110" value="60">
+            <div class="value-display amp-val" id="amp-val">60</div>
         </div>
         <div class="control-group">
             <label for="frequency" class="freq-label">진동수</label>
-            <input type="range" id="frequency" min="1" max="10" value="4" step="0.5">
-            <div class="value-display freq-val" id="freq-val">4</div>
+            <input type="range" id="frequency" min="1" max="5" value="2" step="0.5">
+            <div class="value-display freq-val" id="freq-val">2</div>
         </div>
     </div>
 
     <div class="canvas-container">
         <canvas id="waveCanvas"></canvas>
+    </div>
+
+    <div class="glass-panel" id="formula-panel">
+        속력(0) = 파장(0) / 주기(0) = 파장(0) × 진동수(0)
     </div>
 
     <script>
@@ -103,12 +143,20 @@
         const freqInput = document.getElementById('frequency');
         const ampVal = document.getElementById('amp-val');
         const freqVal = document.getElementById('freq-val');
+        const formulaPanel = document.getElementById('formula-panel');
         
         let offset = 0;
+        let currentMode = 'dist'; 
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-dist').classList.toggle('active', mode === 'dist');
+            document.getElementById('btn-time').classList.toggle('active', mode === 'time');
+        }
 
         function resizeCanvas() {
             canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = 300;
+            canvas.height = 320;
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
@@ -122,9 +170,19 @@
             
             const amplitude = parseFloat(ampInput.value);
             const frequency = parseFloat(freqInput.value);
+            
+            const wavelength = (width / frequency).toFixed(1); 
+            const period = (1 / frequency).toFixed(2);
+            const speed = (wavelength * frequency).toFixed(1);
 
             ampVal.textContent = amplitude;
             freqVal.textContent = frequency;
+
+            if (currentMode === 'dist') {
+                formulaPanel.innerHTML = `속력(${speed}) = 파장(${wavelength}) / 주기(${period}) = 파장(${wavelength}) × 진동수(${frequency})`;
+            } else {
+                formulaPanel.innerHTML = `속력(${speed}) = 파장(${wavelength}) / 주기(${period}) = 파장(${wavelength}) × 진동수(${frequency})`;
+            }
 
             ctx.beginPath();
             ctx.strokeStyle = '#000000';
@@ -139,6 +197,10 @@
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3;
 
+            let firstCrestX = null;
+            let secondCrestX = null;
+            let crestY = null;
+
             for (let x = 0; x < width; x++) {
                 const angle = (x / width) * Math.PI * 2 * frequency + offset;
                 const y = centerY + Math.sin(angle) * amplitude;
@@ -148,21 +210,48 @@
                 } else {
                     ctx.lineTo(x, y);
                 }
+
+                const normalizedAngle = (angle - Math.PI / 2) % (Math.PI * 2);
+                if (Math.abs(normalizedAngle) < 0.05 || Math.abs(normalizedAngle - Math.PI * 2) < 0.05) {
+                    if (firstCrestX === null && x > width * 0.05) {
+                        firstCrestX = x;
+                        crestY = y;
+                    } else if (firstCrestX !== null && secondCrestX === null && (x - firstCrestX) > (width / frequency) * 0.8) {
+                        secondCrestX = x;
+                    }
+                }
             }
             ctx.stroke();
 
-            ctx.beginPath();
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 1.5;
-            ctx.moveTo(width * 0.25, centerY);
-            ctx.lineTo(width * 0.25, centerY - amplitude);
-            ctx.stroke();
-            
-            ctx.fillStyle = '#ff0000';
-            ctx.font = '12px sans-serif';
-            ctx.fillText('진폭', width * 0.25 + 5, centerY - (amplitude / 2));
+            if (firstCrestX !== null) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.moveTo(firstCrestX, centerY);
+                ctx.lineTo(firstCrestX, crestY);
+                ctx.stroke();
 
-            offset -= 0.05;
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText('진폭', firstCrestX + 8, crestY + (amplitude / 2) + 4);
+            }
+
+            if (firstCrestX !== null && secondCrestX !== null) {
+                const lineY = crestY - 20;
+                ctx.beginPath();
+                ctx.strokeStyle = '#0000ff';
+                ctx.lineWidth = 2;
+                ctx.moveTo(firstCrestX, lineY);
+                ctx.lineTo(secondCrestX, lineY);
+                ctx.stroke();
+
+                ctx.fillStyle = '#0000ff';
+                ctx.font = 'bold 12px sans-serif';
+                const labelText = currentMode === 'dist' ? '파장' : '주기';
+                ctx.fillText(labelText, (firstCrestX + secondCrestX) / 2 - 10, lineY - 8);
+            }
+
+            offset -= 0.04;
             requestAnimationFrame(draw);
         }
 
