@@ -109,6 +109,102 @@
             font-size: 14px;
             word-break: keep-all;
         }
+
+        .motion-controls-container {
+            margin-top: 15px;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 2px solid #000000;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .motion-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-round {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ffffff;
+            border: 2px solid #000000;
+            transition: .3s;
+            border-radius: 26px;
+        }
+
+        .slider-round:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #000000;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider-round {
+            background-color: #000000;
+        }
+
+        input:checked + .slider-round:before {
+            transform: translateX(24px);
+            background-color: #ffffff;
+        }
+
+        .motion-label {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .time-slider-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .time-slider-row label {
+            width: 120px;
+            transition: color 0.3s;
+        }
+
+        #time-flow {
+            flex: 1;
+            accent-color: #000000;
+            transition: opacity 0.3s;
+        }
+
+        #time-flow:disabled {
+            accent-color: #888888;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .disabled-text {
+            color: #888888 !important;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +233,20 @@
 
     <div class="glass-panel" id="formula-panel"></div>
 
+    <div class="motion-controls-container">
+        <div class="motion-toggle-row">
+            <span class="motion-label">실시간 움직임 (자동)</span>
+            <label class="switch">
+                <input type="checkbox" id="motion-switch" onchange="toggleAutoMotion()">
+                <span class="slider-round"></span>
+            </label>
+        </div>
+        <div class="time-slider-row">
+            <label for="time-flow" id="time-slider-label" class="motion-label">시간의 흐름 (수동)</label>
+            <input type="range" id="time-flow" min="0" max="100" value="0" step="0.5">
+        </div>
+    </div>
+
     <script>
         const canvas = document.getElementById('waveCanvas');
         const ctx = canvas.getContext('2d');
@@ -145,14 +255,27 @@
         const ampVal = document.getElementById('amp-val');
         const freqVal = document.getElementById('freq-val');
         const formulaPanel = document.getElementById('formula-panel');
+        const motionSwitch = document.getElementById('motion-switch');
+        const timeFlowInput = document.getElementById('time-flow');
+        const timeSliderLabel = document.getElementById('time-slider-label');
         
-        let offset = 0;
+        let autoOffset = 0;
         let currentMode = 'dist'; 
 
         function setMode(mode) {
             currentMode = mode;
             document.getElementById('btn-dist').classList.toggle('active', mode === 'dist');
             document.getElementById('btn-time').classList.toggle('active', mode === 'time');
+        }
+
+        function toggleAutoMotion() {
+            if (motionSwitch.checked) {
+                timeFlowInput.disabled = true;
+                timeSliderLabel.classList.add('disabled-text');
+            } else {
+                timeFlowInput.disabled = false;
+                timeSliderLabel.classList.remove('disabled-text');
+            }
         }
 
         function resizeCanvas() {
@@ -202,8 +325,18 @@
             let secondCrestX = null;
             let crestY = null;
 
+            const isAuto = motionSwitch.checked;
+            const manualOffset = -(parseFloat(timeFlowInput.value) * 0.1);
+            const currentOffset = isAuto ? autoOffset : manualOffset;
+
             for (let x = 0; x < width; x++) {
-                const angle = (x / width) * Math.PI * 2 * frequency + offset;
+                let angle;
+                if (currentMode === 'dist') {
+                    angle = (x / width) * Math.PI * 2 * frequency + currentOffset;
+                } else {
+                    angle = (x / width) * Math.PI * 2 * frequency;
+                }
+                
                 const y = centerY + Math.sin(angle) * amplitude;
 
                 if (x === 0) {
@@ -223,6 +356,26 @@
                 }
             }
             ctx.stroke();
+
+            if (currentMode === 'time') {
+                const fixedX = width * 0.25;
+                const pointAngle = (fixedX / width) * Math.PI * 2 * frequency + currentOffset;
+                const pointY = centerY + Math.sin(pointAngle) * amplitude;
+
+                ctx.beginPath();
+                ctx.fillStyle = '#ff0000';
+                ctx.arc(fixedX, pointY, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 3]);
+                ctx.moveTo(fixedX, centerY - amplitude);
+                ctx.lineTo(fixedX, centerY + amplitude);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
 
             if (firstCrestX !== null) {
                 ctx.beginPath();
@@ -256,10 +409,13 @@
                 }
             }
 
-            offset -= 0.04;
+            if (isAuto) {
+                autoOffset -= 0.04;
+            }
             requestAnimationFrame(draw);
         }
 
+        toggleAutoMotion();
         draw();
     </script>
 </body>
