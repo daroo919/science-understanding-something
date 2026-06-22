@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파동 시뮬레이션</title>
+    <style>
+        /* 기본 스타일: 배경은 하양, 텍스트 및 메인 톤은 검정 */
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background-color: #ffffff;
+            color: #000000;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: #000000;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #555555;
+            margin-bottom: 20px;
+        }
+
+        /* 컨트롤러 영역 */
+        .controls {
+            width: 100%;
+            max-width: 600px;
+            border: 2px solid #000000;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            width: 100px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* 빨강과 파랑을 포인트로 활용한 슬라이더 */
+        #amplitude {
+            accent-color: #ff0000; /* 진폭은 빨간색 */
+            flex: 1;
+        }
+
+        #frequency {
+            accent-color: #0000ff; /* 진동수는 파란색 */
+            flex: 1;
+        }
+
+        .value-display {
+            width: 50px;
+            text-align: right;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .amp-text { color: #ff0000; }
+        .freq-text { color: #0000ff; }
+
+        /* 캔버스 영역 (움직이는 그래프) */
+        .canvas-container {
+            width: 100%;
+            max-width: 600px;
+            border: 2px solid #000000;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 300px;
+        }
+
+        /* 교과서 스타일 설명 영역 */
+        .explanation {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .explanation ul {
+            padding-left: 20px;
+            margin: 5px 0;
+        }
+
+        .explanation li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>소리와 파동 시뮬레이터</h1>
+    <div class="subtitle">교과서 핵심 정리: 진폭과 진동수에 따른 파동의 변화</div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="amplitude" class="amp-text">진폭 (소리 세기)</label>
+            <input type="range" id="amplitude" min="10" max="90" value="50">
+            <div class="value-display amp-text" id="amp-val">50</div>
+        </div>
+        <div class="control-group">
+            <label for="frequency" class="freq-text">진동수 (소리 높낮이)</label>
+            <input type="range" id="frequency" min="1" max="10" value="4" step="0.5">
+            <div class="value-display freq-text" id="freq-val">4</div>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="waveCanvas"></canvas>
+    </div>
+
+    <div class="explanation">
+        <strong>💡 그래프 관찰 포인트 (교과서 내용)</strong>
+        <ul>
+            <li><span class="amp-text"><strong>진폭이 클수록</strong></span> 위아래로 크게 움직이며 <span class="amp-text"><strong>큰 소리</strong></span>가 납니다. (빨간색 조절)</li>
+            <li><span class="freq-text"><strong>진동수가 클수록</strong></span> 파동이 촘촘해지며(마루와 골이 많아짐) <span class="freq-text"><strong>높은 소리</strong></span>가 납니다. (파란색 조절)</li>
+        </ul>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 슬라이더 요소
+        const ampInput = document.getElementById('amplitude');
+        const freqInput = document.getElementById('frequency');
+        const ampVal = document.getElementById('amp-val');
+        const freqVal = document.getElementById('freq-val');
+
+        // 애니메이션을 위한 변수
+        let offset = 0;
+
+        // 해상도 설정
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = 300;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 실시간 파동 그리기 함수
+        function draw() {
+            // 1. 화면 지우기 (하얀 배경)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerY = height / 2;
+
+            // 값 가져오기
+            const amplitude = parseFloat(ampInput.value);
+            const frequency = parseFloat(freqInput.value);
+
+            // 텍스트 업데이트
+            ampVal.textContent = amplitude;
+            freqVal.textContent = frequency;
+
+            // 2. 기준선 (검은색 중심선) 그리기
+            ctx.beginPath();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]); // 점선 효과
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+            ctx.setLineDash([]); // 점선 해제
+
+            // 3. 움직이는 파동(사인파) 그리기 - 검은색 실선
+            ctx.beginPath();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+
+            for (let x = 0; x < width; x++) {
+                // 파동 공식 적용 (교과서의 주기와 진동수 개념 시각화)
+                const angle = (x / width) * Math.PI * 2 * frequency + offset;
+                const y = centerY + Math.sin(angle) * amplitude;
+
+                if (x === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // 4. 진폭 표시선 (현재 최고 높이를 빨간색 화살표 대신 선으로 표시)
+            ctx.beginPath();
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(width * 0.25, centerY);
+            ctx.lineTo(width * 0.25, centerY - amplitude);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ff0000';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('진폭', width * 0.25 + 5, centerY - (amplitude / 2));
+
+            // 오프셋을 변경하여 파동이 왼쪽으로 살아 움직이듯 흐르는 효과 부여
+            offset -= 0.05;
+
+            // 다음 프레임 요청
+            requestAnimationFrame(draw);
+        }
+
+        // 실행
+        draw();
+    </script>
+</body>
+</html>
