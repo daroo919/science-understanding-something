@@ -16,21 +16,6 @@
             align-items: center;
         }
 
-        .controls {
-            width: 100%;
-            max-width: 600px;
-            border: 2px solid #000000;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-sizing: border-box;
-        }
-
-        .control-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
         .toggle-group {
             display: flex;
             justify-content: center;
@@ -50,6 +35,25 @@
         .toggle-btn.active {
             background-color: #000000;
             color: #ffffff;
+        }
+
+        .controls {
+            width: 100%;
+            max-width: 600px;
+            border: 2px solid #000000;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
         }
 
         label {
@@ -80,7 +84,6 @@
             border: 2px solid #000000;
             position: relative;
             background: #ffffff;
-            overflow: hidden;
         }
 
         canvas {
@@ -103,26 +106,26 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
             text-align: center;
             font-weight: bold;
-            font-size: 15px;
-            letter-spacing: -0.5px;
+            font-size: 14px;
+            word-break: keep-all;
         }
     </style>
 </head>
 <body>
 
     <div class="toggle-group">
-        <button class="toggle-btn active" id="btn-dist" onclick="setMode('dist')">거리 그래프</button>
-        <button class="toggle-btn" id="btn-time" onclick="setMode('time')">시간 그래프</button>
+        <button class="toggle-btn active" id="btn-dist" onclick="setMode('dist')">거리 · 위치 그래프</button>
+        <button class="toggle-btn" id="btn-time" onclick="setMode('time')">시간 · 위치 그래프</button>
     </div>
 
     <div class="controls">
         <div class="control-group">
-            <label for="amplitude" class="amp-label">진폭</label>
+            <label for="amplitude" class="amp-label">진폭(A)</label>
             <input type="range" id="amplitude" min="20" max="110" value="60">
             <div class="value-display amp-val" id="amp-val">60</div>
         </div>
         <div class="control-group">
-            <label for="frequency" class="freq-label">진동수</label>
+            <label for="frequency" class="freq-label">진동수(f)</label>
             <input type="range" id="frequency" min="1" max="5" value="2" step="0.5">
             <div class="value-display freq-val" id="freq-val">2</div>
         </div>
@@ -132,9 +135,7 @@
         <canvas id="waveCanvas"></canvas>
     </div>
 
-    <div class="glass-panel" id="formula-panel">
-        속력(0) = 파장(0) / 주기(0) = 파장(0) × 진동수(0)
-    </div>
+    <div class="glass-panel" id="formula-panel"></div>
 
     <script>
         const canvas = document.getElementById('waveCanvas');
@@ -171,18 +172,14 @@
             const amplitude = parseFloat(ampInput.value);
             const frequency = parseFloat(freqInput.value);
             
-            const wavelength = (width / frequency).toFixed(1); 
+            const wavelength = Math.round(width / frequency); 
             const period = (1 / frequency).toFixed(2);
-            const speed = (wavelength * frequency).toFixed(1);
+            const speed = (wavelength * frequency).toFixed(0);
 
             ampVal.textContent = amplitude;
             freqVal.textContent = frequency;
 
-            if (currentMode === 'dist') {
-                formulaPanel.innerHTML = `속력(${speed}) = 파장(${wavelength}) / 주기(${period}) = 파장(${wavelength}) × 진동수(${frequency})`;
-            } else {
-                formulaPanel.innerHTML = `속력(${speed}) = 파장(${wavelength}) / 주기(${period}) = 파장(${wavelength}) × 진동수(${frequency})`;
-            }
+            formulaPanel.innerHTML = `속력(${speed}) = 파장(${wavelength}) / 주기(${period}) = 파장(${wavelength}) × 진동수(${frequency})`;
 
             ctx.beginPath();
             ctx.strokeStyle = '#000000';
@@ -192,6 +189,10 @@
             ctx.lineTo(width, centerY);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            ctx.fillStyle = '#000000';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(currentMode === 'dist' ? '거리' : '시간', width - 30, centerY + 15);
 
             ctx.beginPath();
             ctx.strokeStyle = '#000000';
@@ -213,7 +214,7 @@
 
                 const normalizedAngle = (angle - Math.PI / 2) % (Math.PI * 2);
                 if (Math.abs(normalizedAngle) < 0.05 || Math.abs(normalizedAngle - Math.PI * 2) < 0.05) {
-                    if (firstCrestX === null && x > width * 0.05) {
+                    if (firstCrestX === null && x > width * 0.02) {
                         firstCrestX = x;
                         crestY = y;
                     } else if (firstCrestX !== null && secondCrestX === null && (x - firstCrestX) > (width / frequency) * 0.8) {
@@ -233,11 +234,11 @@
 
                 ctx.fillStyle = '#ff0000';
                 ctx.font = 'bold 12px sans-serif';
-                ctx.fillText('진폭', firstCrestX + 8, crestY + (amplitude / 2) + 4);
+                ctx.fillText(`진폭(${amplitude})`, firstCrestX + 8, centerY - (amplitude / 2) + 4);
             }
 
             if (firstCrestX !== null && secondCrestX !== null) {
-                const lineY = crestY - 20;
+                const lineY = crestY - 15;
                 ctx.beginPath();
                 ctx.strokeStyle = '#0000ff';
                 ctx.lineWidth = 2;
@@ -247,8 +248,12 @@
 
                 ctx.fillStyle = '#0000ff';
                 ctx.font = 'bold 12px sans-serif';
-                const labelText = currentMode === 'dist' ? '파장' : '주기';
-                ctx.fillText(labelText, (firstCrestX + secondCrestX) / 2 - 10, lineY - 8);
+                
+                if (currentMode === 'dist') {
+                    ctx.fillText(`파장(λ: ${wavelength})`, (firstCrestX + secondCrestX) / 2 - 35, lineY - 8);
+                } else {
+                    ctx.fillText(`주기(T: ${period}s)`, (firstCrestX + secondCrestX) / 2 - 35, lineY - 8);
+                }
             }
 
             offset -= 0.04;
